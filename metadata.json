@@ -1,0 +1,6 @@
+{
+  "name": "Digital Services E-commerce Platform",
+  "description": "A comprehensive SaaS-level digital services e-commerce platform with retail, wholesale, and admin portals.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
