@@ -332,7 +332,7 @@ export function WholesaleServiceDetails() {
               <div className="bg-white/5 rounded-xl p-4 border border-white/10">
                 <div className="flex items-start text-sm text-slate-300 mb-2">
                   <Clock className="w-4 h-4 mr-2 text-emerald-400 shrink-0 mt-0.5" />
-                  <span>Est. {service.processing_time_hours} Hours</span>
+                  <span>Est. {service.processing_time}</span>
                 </div>
                 <div className="flex items-start text-sm text-slate-300">
                   <Shield className="w-4 h-4 mr-2 text-emerald-400 shrink-0 mt-0.5" />

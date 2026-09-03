@@ -121,7 +121,7 @@ export function ServicesList() {
                 <div className="flex items-center justify-between text-sm">
                   <div className="flex items-center text-slate-600">
                     <Clock className="w-4 h-4 mr-1.5 text-slate-400" />
-                    <span>{service.processing_time_hours}h Avg.</span>
+                    <span>{service.processing_time}h Avg.</span>
                   </div>
                   <div className="text-right">
                     <span className="text-xs text-slate-400 block font-medium uppercase tracking-wider">Retail</span>

@@ -291,7 +291,7 @@ export function ServiceDetails() {
                   <span className="text-slate-500">Processing Time</span>
                   <span className="font-medium text-slate-900 flex items-center">
                     <Clock className="w-4 h-4 mr-1 text-slate-400" />
-                    {service.processing_time_hours} Hours
+                    {service.processing_time}
                   </span>
                 </div>
                 

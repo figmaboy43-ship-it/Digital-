@@ -19,7 +19,7 @@ export default function OrderDetails() {
     try {
       const { data: orderData, error: orderError } = await supabase
         .from('orders')
-        .select(`*, service:service_id (name, processing_time_hours)`)
+        .select(`*, service:service_id (name, processing_time)`)
         .eq('id', id)
         .eq('user_id', user?.id)
         .single();
@@ -147,7 +147,17 @@ export default function OrderDetails() {
                 <div className="w-2 h-2 rounded-full bg-emerald-500"></div>
               </div>
               <p className="text-sm font-bold text-slate-900">{event.event_type.replace('_', ' ')}</p>
-              {event.message && <p className="text-sm text-slate-600 mt-1">{event.message}</p>}
+              {event.message && (
+                <p className="text-sm text-slate-600 mt-1 whitespace-pre-wrap">
+                  {event.message.split(/(https?:\/\/[^\s]+)/g).map((part: string, i: number) => 
+                    part.match(/^https?:\/\//) ? (
+                      <a key={i} href={part} target="_blank" rel="noopener noreferrer" className="text-emerald-600 hover:underline font-medium break-all">{part}</a>
+                    ) : (
+                      <span key={i}>{part}</span>
+                    )
+                  )}
+                </p>
+              )}
               <p className="text-xs text-slate-400 mt-1">{format(new Date(event.created_at), 'MMM d, h:mm a')}</p>
             </div>
           ))}
