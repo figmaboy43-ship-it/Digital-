@@ -50,7 +50,7 @@ export default function AdminServices() {
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">Services Catalog</h1>
+          <h1 className="text-2xl font-bold text-slate-900">সেবা তালিকা</h1>
           <p className="text-slate-500 mt-1">Manage available digital services and pricing</p>
         </div>
         <button className="inline-flex items-center justify-center px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-medium rounded-lg transition-colors">
