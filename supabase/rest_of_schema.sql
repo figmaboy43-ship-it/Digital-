@@ -1,104 +1,3 @@
-DROP TABLE IF EXISTS service_categories CASCADE;
-DROP TABLE IF EXISTS services CASCADE;
-DROP TABLE IF EXISTS wholesale_applications CASCADE;
-DROP TABLE IF EXISTS orders CASCADE;
-DROP TABLE IF EXISTS order_events CASCADE;
-DROP TABLE IF EXISTS wallet_transactions CASCADE;
-DROP TABLE IF EXISTS payment_methods CASCADE;
-DROP TABLE IF EXISTS payments CASCADE;
-DROP TABLE IF EXISTS notifications CASCADE;
-DROP TABLE IF EXISTS support_tickets CASCADE;
-DROP TABLE IF EXISTS support_messages CASCADE;
-DROP TABLE IF EXISTS coupons CASCADE;
-DROP TABLE IF EXISTS audit_logs CASCADE;
-DROP TABLE IF EXISTS site_settings CASCADE;
-DROP POLICY IF EXISTS "Users can read own profile" ON profiles;
-DROP POLICY IF EXISTS "Users can update own basic info" ON profiles;
-DROP POLICY IF EXISTS "Admins full access profiles" ON profiles;
-DROP POLICY IF EXISTS "Anyone can view active categories" ON service_categories;
-DROP POLICY IF EXISTS "Admins full access categories" ON service_categories;
-DROP POLICY IF EXISTS "Anyone can view active services" ON services;
-DROP POLICY IF EXISTS "Admins full access services" ON services;
-DROP POLICY IF EXISTS "Users can read own wholesale apps" ON wholesale_applications;
-DROP POLICY IF EXISTS "Users can insert own wholesale apps" ON wholesale_applications;
-DROP POLICY IF EXISTS "Admins full access wholesale apps" ON wholesale_applications;
-DROP POLICY IF EXISTS "Users can read own orders" ON orders;
-DROP POLICY IF EXISTS "Admins full access orders" ON orders;
-DROP POLICY IF EXISTS "Users can read own wallet" ON wallets;
-DROP POLICY IF EXISTS "Admins read access wallets" ON wallets;
-DROP POLICY IF EXISTS "Users can read own transactions" ON wallet_transactions;
-DROP POLICY IF EXISTS "Admins read access transactions" ON wallet_transactions;
-DROP POLICY IF EXISTS "Anyone can view active payment methods" ON payment_methods;
-DROP POLICY IF EXISTS "Admins full access payment methods" ON payment_methods;
-DROP POLICY IF EXISTS "Users can read own payments" ON payments;
-DROP POLICY IF EXISTS "Users can insert own payments" ON payments;
-DROP POLICY IF EXISTS "Admins full access payments" ON payments;
-DROP POLICY IF EXISTS "Users can read own notifications" ON notifications;
-DROP POLICY IF EXISTS "Users can update own notifications" ON notifications;
-DROP POLICY IF EXISTS "Admins full access notifications" ON notifications;
-DROP POLICY IF EXISTS "Users can access own tickets" ON support_tickets;
-DROP POLICY IF EXISTS "Users can insert own tickets" ON support_tickets;
-DROP POLICY IF EXISTS "Admins full access tickets" ON support_tickets;
-DROP POLICY IF EXISTS "Users can access own ticket msgs" ON support_messages;
-DROP POLICY IF EXISTS "Users can insert own ticket msgs" ON support_messages;
-DROP POLICY IF EXISTS "Admins full access msgs" ON support_messages;
-DROP POLICY IF EXISTS "Coupons are admin only" ON coupons;
-DROP POLICY IF EXISTS "Audit logs admin read only" ON audit_logs;
-DROP POLICY IF EXISTS "Anyone can view settings" ON site_settings;
-DROP POLICY IF EXISTS "Admins full access settings" ON site_settings;
-DROP POLICY IF EXISTS "Public Read Avatars" ON storage.objects;
-DROP POLICY IF EXISTS "Auth Upload Avatars" ON storage.objects;
-DROP POLICY IF EXISTS "Public Read Service Images" ON storage.objects;
-DROP POLICY IF EXISTS "Auth Upload Private Proofs" ON storage.objects;
-CREATE POLICY "Users Read Own Private Files" ON storage.objects FOR SELECT USING (
-DROP POLICY IF EXISTS "Admins Read All Private Files" ON storage.objects;
-DROP TRIGGER IF EXISTS restrict_profile_updates_trigger ON profiles;
-DROP TRIGGER IF EXISTS on_wholesale_status_change ON profiles;
-DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
-DROP TRIGGER IF EXISTS on_profile_created ON profiles;
-DROP TRIGGER IF EXISTS update_profiles_modtime ON profiles;
-DROP TRIGGER IF EXISTS update_service_categories_modtime ON service_categories;
-DROP TRIGGER IF EXISTS update_services_modtime ON services;
-DROP TRIGGER IF EXISTS update_wholesale_apps_modtime ON wholesale_applications;
-DROP TRIGGER IF EXISTS update_orders_modtime ON orders;
-DROP TRIGGER IF EXISTS update_wallets_modtime ON wallets;
-DROP TRIGGER IF EXISTS update_payment_methods_modtime ON payment_methods;
-DROP TRIGGER IF EXISTS update_payments_modtime ON payments;
-DROP TRIGGER IF EXISTS update_support_tickets_modtime ON support_tickets;
-DROP TRIGGER IF EXISTS update_site_settings_modtime ON site_settings;
--- ========================================================
--- FIX DATABASE SCHEMA (Run this in Supabase SQL Editor)
--- ========================================================
-
--- Admin verification helper function
-CREATE OR REPLACE FUNCTION is_admin() RETURNS BOOLEAN AS $$
-BEGIN
-    RETURN EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role = 'admin');
-END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
-
--- Wholesale verification helper function
-CREATE OR REPLACE FUNCTION is_approved_wholesale(check_user_id UUID DEFAULT auth.uid()) RETURNS BOOLEAN AS $$
-BEGIN
-    RETURN EXISTS (SELECT 1 FROM profiles WHERE id = check_user_id AND role = 'wholesale' AND wholesale_status = 'approved');
-END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
-
-CREATE OR REPLACE FUNCTION restrict_profile_updates() RETURNS TRIGGER AS $$
-BEGIN
-    IF NOT is_admin() THEN
-        NEW.role = OLD.role;
-        NEW.account_status = OLD.account_status;
-        NEW.wholesale_status = OLD.wholesale_status;
-    END IF;
-    RETURN NEW;
-END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
-
-DROP TRIGGER IF EXISTS restrict_profile_updates_trigger ON profiles;
-CREATE TRIGGER restrict_profile_updates_trigger
-BEFORE UPDATE ON profiles
-FOR EACH ROW EXECUTE PROCEDURE restrict_profile_updates();
 -- 2. SERVICE CATEGORIES
 CREATE TABLE service_categories (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
@@ -192,6 +91,16 @@ CREATE TABLE orders (
 );
 
 -- 6. WALLET
+CREATE TABLE wallets (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    user_id UUID UNIQUE NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+    balance NUMERIC(14,2) DEFAULT 0 CHECK (balance >= 0), -- Explicitly preventing negative balances
+    currency TEXT DEFAULT 'BDT',
+    status TEXT DEFAULT 'active' CHECK (status IN ('active', 'frozen', 'closed')),
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
 -- 7. WALLET TRANSACTIONS
 CREATE TABLE wallet_transactions (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
@@ -491,22 +400,22 @@ $$ LANGUAGE plpgsql SECURITY DEFINER;
 
 
 -- 22. INDEXES
-CREATE INDEX IF NOT EXISTS idx_profiles_role ON profiles(role);
-CREATE INDEX IF NOT EXISTS idx_profiles_ws_status ON profiles(wholesale_status);
-CREATE INDEX IF NOT EXISTS idx_services_category ON services(category_id);
-CREATE INDEX IF NOT EXISTS idx_services_active ON services(is_active);
-CREATE INDEX IF NOT EXISTS idx_orders_user ON orders(user_id);
-CREATE INDEX IF NOT EXISTS idx_orders_status ON orders(status);
-CREATE INDEX IF NOT EXISTS idx_orders_created ON orders(created_at);
-CREATE INDEX IF NOT EXISTS idx_payments_user ON payments(user_id);
-CREATE INDEX IF NOT EXISTS idx_payments_status ON payments(status);
-CREATE INDEX IF NOT EXISTS idx_wallet_tx_user ON wallet_transactions(user_id);
-CREATE INDEX IF NOT EXISTS idx_wallet_tx_created ON wallet_transactions(created_at);
-CREATE INDEX IF NOT EXISTS idx_notifications_user ON notifications(user_id);
-CREATE INDEX IF NOT EXISTS idx_notifications_read ON notifications(is_read);
-CREATE INDEX IF NOT EXISTS idx_tickets_user ON support_tickets(user_id);
-CREATE INDEX IF NOT EXISTS idx_audit_actor ON audit_logs(actor_id);
-CREATE INDEX IF NOT EXISTS idx_audit_created ON audit_logs(created_at);
+CREATE INDEX idx_profiles_role ON profiles(role);
+CREATE INDEX idx_profiles_ws_status ON profiles(wholesale_status);
+CREATE INDEX idx_services_category ON services(category_id);
+CREATE INDEX idx_services_active ON services(is_active);
+CREATE INDEX idx_orders_user ON orders(user_id);
+CREATE INDEX idx_orders_status ON orders(status);
+CREATE INDEX idx_orders_created ON orders(created_at);
+CREATE INDEX idx_payments_user ON payments(user_id);
+CREATE INDEX idx_payments_status ON payments(status);
+CREATE INDEX idx_wallet_tx_user ON wallet_transactions(user_id);
+CREATE INDEX idx_wallet_tx_created ON wallet_transactions(created_at);
+CREATE INDEX idx_notifications_user ON notifications(user_id);
+CREATE INDEX idx_notifications_read ON notifications(is_read);
+CREATE INDEX idx_tickets_user ON support_tickets(user_id);
+CREATE INDEX idx_audit_actor ON audit_logs(actor_id);
+CREATE INDEX idx_audit_created ON audit_logs(created_at);
 
 
 -- 17. ROW LEVEL SECURITY (RLS)
