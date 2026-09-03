@@ -152,10 +152,10 @@ export default function OrderDetails() {
                 <p className="text-sm text-slate-600 mt-1 whitespace-pre-wrap">
                   {event.message.split(/(https?:\/\/[^\s]+)/g).map((part: string, i: number) => 
                     part.match(/^https?:\/\//) ? (
-                      <a key={i} href={part} target="_blank" rel="noopener noreferrer" className="inline-flex items-center px-4 py-2 mt-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-medium text-sm transition-colors no-underline">
+                      <button key={i} onClick={() => window.open(part, "_blank")} className="inline-flex items-center px-4 py-2 mt-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-medium text-sm transition-colors no-underline">
                         <Download className="w-4 h-4 mr-2" />
                         Download Now
-                      </a>
+                      </button>
                     ) : (
                       <span key={i}>{part}</span>
                     )
