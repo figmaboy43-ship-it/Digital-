@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { supabase } from '../../lib/supabase';
+import { DynamicIcon } from '../../components/DynamicIcon';
 import { Plus, Edit2, Trash2, Power, PowerOff, X, FolderPlus } from 'lucide-react';
 import toast from 'react-hot-toast';
 
@@ -18,7 +19,7 @@ export default function AdminServices() {
   // Service Form
   const [srvForm, setSrvForm] = useState({
     id: '', name: '', slug: '', category_id: '', description: '',
-    retail_price: '', wholesale_price: '', processing_time: ''
+    retail_price: '', wholesale_price: '', processing_time: '', icon: ''
   });
 
   useEffect(() => {
@@ -132,7 +133,7 @@ export default function AdminServices() {
         description: srvForm.description,
         retail_price: Number(srvForm.retail_price) || 0,
         wholesale_price: Number(srvForm.wholesale_price) || 0,
-        processing_time: srvForm.processing_time
+        processing_time: srvForm.processing_time, icon: srvForm.icon
       };
 
       if (srvForm.id) {
@@ -145,7 +146,7 @@ export default function AdminServices() {
         toast.success('নতুন সেবা যুক্ত হয়েছে');
       }
       setIsServiceModalOpen(false);
-      setSrvForm({ id: '', name: '', slug: '', category_id: '', description: '', retail_price: '', wholesale_price: '', processing_time: '' });
+      setSrvForm({ id: '', name: '', slug: '', category_id: '', description: '', retail_price: '', wholesale_price: '', processing_time: '', icon: '' });
       fetchData();
     } catch (error: any) {
       toast.error(error.message || 'সেবা সংরক্ষণ ব্যর্থ');
@@ -166,7 +167,7 @@ export default function AdminServices() {
       description: srv.description || '',
       retail_price: srv.retail_price.toString(),
       wholesale_price: srv.wholesale_price.toString(),
-      processing_time: srv.processing_time || ''
+      processing_time: srv.processing_time || '', icon: srv.icon || ''
     });
     setIsServiceModalOpen(true);
   };
@@ -191,7 +192,7 @@ export default function AdminServices() {
             নতুন ক্যাটাগরি
           </button>
           <button 
-            onClick={() => { setSrvForm({ id: '', name: '', slug: '', category_id: '', description: '', retail_price: '', wholesale_price: '', processing_time: '' }); setIsServiceModalOpen(true); }}
+            onClick={() => { setSrvForm({ id: '', name: '', slug: '', category_id: '', description: '', retail_price: '', wholesale_price: '', processing_time: '', icon: '' }); setIsServiceModalOpen(true); }}
             className="inline-flex items-center justify-center px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-medium rounded-lg transition-colors"
           >
             <Plus className="w-5 h-5 mr-2" />
@@ -248,7 +249,7 @@ export default function AdminServices() {
                 <div className="text-xs font-semibold text-emerald-600 mb-1 uppercase tracking-wider">
                   {service.service_categories?.name || 'Uncategorized'}
                 </div>
-                <h3 className="text-lg font-bold text-slate-900 mb-2">{service.name}</h3>
+                <h3 className="text-lg font-bold text-slate-900 mb-2 flex items-start gap-2">{service.icon && <DynamicIcon name={service.icon} className="w-5 h-5 text-emerald-600 shrink-0 mt-0.5" />}<span>{service.name}</span></h3>
                 <p className="text-sm text-slate-500 line-clamp-2 mb-4 flex-1">
                   {service.description}
                 </p>
@@ -399,6 +400,11 @@ export default function AdminServices() {
                   </select>
                 </div>
                 <div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">আইকন (Icon Name)</label>
+                  <input type="text" className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none transition-all" placeholder="ex: FileText" value={srvForm.icon || ''} onChange={e => setSrvForm({...srvForm, icon: e.target.value})} />
+                </div>
+
                   <label className="block text-sm font-medium text-slate-700 mb-1">প্রসেসিং সময়</label>
                   <input type="text" className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none transition-all" placeholder="ex: 2-3 Days" value={srvForm.processing_time} onChange={e => setSrvForm({...srvForm, processing_time: e.target.value})} />
                 </div>
