@@ -57,7 +57,7 @@ export default function AdminWholesaleSettings() {
         .from('site_settings')
         .select('id')
         .eq('key', 'wholesale_content')
-        .single();
+        .maybeSingle();
 
       if (existingData) {
         const { error } = await supabase
