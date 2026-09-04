@@ -40,41 +40,17 @@ export default function AdminPaymentMethods() {
         name: formData.name,
         account_identifier: formData.account_identifier,
         instructions: formData.instructions,
-        is_active: formData.is_active,
-        min_amount: formData.min_amount ? Number(formData.min_amount) : null,
-        max_amount: formData.max_amount ? Number(formData.max_amount) : null,
+        is_active: formData.is_active
       };
 
-      let finalPayload = { ...payload };
-      let saveError;
-      
       if (editingId) {
-        const { error } = await supabase.from('payment_methods').update(finalPayload).eq('id', editingId);
-        saveError = error;
+        const { error } = await supabase.from('payment_methods').update(payload).eq('id', editingId);
+        if (error) throw error;
+        toast.success('Payment method updated');
       } else {
-        const { error } = await supabase.from('payment_methods').insert([finalPayload]);
-        saveError = error;
-      }
-
-      if (saveError && saveError.message.includes('max_amount')) {
-        // Fallback for missing columns
-        delete finalPayload.min_amount;
-        delete finalPayload.max_amount;
-        
-        toast.error('Limits ignored. Please run SQL migration to add min_amount/max_amount columns.', { duration: 5000 });
-        
-        if (editingId) {
-          const { error: retryError } = await supabase.from('payment_methods').update(finalPayload).eq('id', editingId);
-          if (retryError) throw retryError;
-        } else {
-          const { error: retryError } = await supabase.from('payment_methods').insert([finalPayload]);
-          if (retryError) throw retryError;
-        }
-        toast.success(editingId ? 'Payment method updated (without limits)' : 'Payment method added (without limits)');
-      } else if (saveError) {
-        throw saveError;
-      } else {
-        toast.success(editingId ? 'Payment method updated' : 'Payment method added');
+        const { error } = await supabase.from('payment_methods').insert([payload]);
+        if (error) throw error;
+        toast.success('Payment method added');
       }
 
       setEditingId(null);
@@ -116,14 +92,6 @@ export default function AdminPaymentMethods() {
               <label className="block text-sm font-medium text-slate-700 mb-1">Account Number / Identifier</label>
               <input required value={formData.account_identifier} onChange={e => setFormData({...formData, account_identifier: e.target.value})} className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-emerald-500 outline-none" />
             </div>
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">Min Amount (Optional)</label>
-              <input type="number" value={formData.min_amount} onChange={e => setFormData({...formData, min_amount: e.target.value})} className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-emerald-500 outline-none" />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">Max Amount (Optional)</label>
-              <input type="number" value={formData.max_amount} onChange={e => setFormData({...formData, max_amount: e.target.value})} className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-emerald-500 outline-none" />
-            </div>
             <div className="md:col-span-2">
               <label className="block text-sm font-medium text-slate-700 mb-1">Instructions (Optional)</label>
               <textarea value={formData.instructions} onChange={e => setFormData({...formData, instructions: e.target.value})} className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-emerald-500 outline-none h-24" />
@@ -153,7 +121,6 @@ export default function AdminPaymentMethods() {
             <tr>
               <th className="px-6 py-4 font-semibold">Method</th>
               <th className="px-6 py-4 font-semibold">Account</th>
-              <th className="px-6 py-4 font-semibold">Limits</th>
               <th className="px-6 py-4 font-semibold">Status</th>
               <th className="px-6 py-4 font-semibold text-right">Actions</th>
             </tr>
@@ -163,10 +130,6 @@ export default function AdminPaymentMethods() {
               <tr key={method.id} className="hover:bg-slate-50">
                 <td className="px-6 py-4 font-bold text-slate-900">{method.name}</td>
                 <td className="px-6 py-4 font-mono text-slate-600">{method.account_identifier}</td>
-                <td className="px-6 py-4 text-slate-500">
-                  {method.min_amount ? `Min: ${method.min_amount}` : ''} 
-                  {method.max_amount ? ` Max: ${method.max_amount}` : ''}
-                </td>
                 <td className="px-6 py-4">
                   {method.is_active ? (
                     <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-emerald-100 text-emerald-800"><CheckCircle className="w-3 h-3 mr-1" /> Active</span>
