@@ -24,7 +24,7 @@ export function RetailDashboard() {
   const fetchStats = async () => {
     try {
       const [walletRes, ordersRes] = await Promise.all([
-        supabase.from('wallets').select('balance').eq('user_id', user?.id).single(),
+        supabase.from('wallets').select('balance').eq('user_id', user?.id).maybeSingle(),
         supabase.from('orders').select('status, total_amount').eq('user_id', user?.id)
       ]);
 

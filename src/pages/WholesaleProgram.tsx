@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { useNavigate } from 'react-router-dom';
 import { Briefcase, Building2, Phone, Mail, FileText, CheckCircle, ArrowRight, ShieldAlert, Upload } from 'lucide-react';
@@ -11,6 +11,37 @@ export function WholesaleProgram() {
   const navigate = useNavigate();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { register, handleSubmit, formState: { errors } } = useForm();
+  
+  const [benefits, setBenefits] = useState<string[]>([
+    'সেবার মূল্যে বিশেষ ছাড় (Up to 40%)',
+    'অগ্রাধিকার ভিত্তিতে দ্রুত সার্ভিস প্রসেসিং',
+    'হোলসেল পার্টনারদের জন্য ডেডিকেটেড হেল্পডেস্ক',
+    'সহজ ওয়ালেট সিস্টেম ও লেনদেনের পূর্ণাঙ্গ হিসাব'
+  ]);
+  const [conditions, setConditions] = useState<string>('সঠিক তথ্য প্রদান করে আবেদন করুন। কর্তৃপক্ষ যাচাই শেষে অনুমোদন প্রদান করবেন। ভুয়া তথ্যের প্রমাণ পেলে আবেদন বাতিল করা হবে।');
+
+  useEffect(() => {
+    fetchSettings();
+  }, []);
+
+  const fetchSettings = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('site_settings')
+        .select('value')
+        .eq('key', 'wholesale_content')
+        .single();
+        
+      if (error && error.code !== 'PGRST116') throw error;
+      
+      if (data && data.value) {
+        if (data.value.benefits) setBenefits(data.value.benefits);
+        if (data.value.conditions) setConditions(data.value.conditions);
+      }
+    } catch (error) {
+      console.error('Failed to load wholesale settings:', error);
+    }
+  };
 
   if (profile?.role === 'wholesale') {
     return (
@@ -72,28 +103,18 @@ export function WholesaleProgram() {
             <div className="gov-card p-6 border-l-4 border-l-primary">
               <h3 className="font-bold text-gray-900 mb-4 text-lg">হোলসেল সুবিধা</h3>
               <ul className="space-y-4">
-                <li className="flex items-start">
-                  <CheckCircle className="w-5 h-5 text-primary mr-3 flex-shrink-0" />
-                  <span className="text-sm text-gray-700">সেবার মূল্যে বিশেষ ছাড় (Up to 40%)</span>
-                </li>
-                <li className="flex items-start">
-                  <CheckCircle className="w-5 h-5 text-primary mr-3 flex-shrink-0" />
-                  <span className="text-sm text-gray-700">অগ্রাধিকার ভিত্তিতে দ্রুত সার্ভিস প্রসেসিং</span>
-                </li>
-                <li className="flex items-start">
-                  <CheckCircle className="w-5 h-5 text-primary mr-3 flex-shrink-0" />
-                  <span className="text-sm text-gray-700">হোলসেল পার্টনারদের জন্য ডেডিকেটেড হেল্পডেস্ক</span>
-                </li>
-                <li className="flex items-start">
-                  <CheckCircle className="w-5 h-5 text-primary mr-3 flex-shrink-0" />
-                  <span className="text-sm text-gray-700">সহজ ওয়ালেট সিস্টেম ও লেনদেনের পূর্ণাঙ্গ হিসাব</span>
-                </li>
+                {benefits.map((benefit, index) => (
+                  <li key={index} className="flex items-start">
+                    <CheckCircle className="w-5 h-5 text-primary mr-3 flex-shrink-0" />
+                    <span className="text-sm text-gray-700">{benefit}</span>
+                  </li>
+                ))}
               </ul>
             </div>
             
             <div className="bg-gray-50 border border-gray-200 rounded-sm p-4 text-sm text-gray-600 flex items-start">
               <ShieldAlert className="w-5 h-5 text-gov-red mr-2 flex-shrink-0" />
-              <p>সঠিক তথ্য প্রদান করে আবেদন করুন। কর্তৃপক্ষ যাচাই শেষে অনুমোদন প্রদান করবেন। ভুয়া তথ্যের প্রমাণ পেলে আবেদন বাতিল করা হবে।</p>
+              <p className="whitespace-pre-wrap">{conditions}</p>
             </div>
           </div>
 

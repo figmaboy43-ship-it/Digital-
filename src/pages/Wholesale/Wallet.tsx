@@ -23,14 +23,14 @@ export function WholesaleWallet() {
         .from('wallets')
         .select('balance')
         .eq('user_id', user?.id)
-        .single();
+        .maybeSingle();
       
       if (walletData) {
         setBalance(walletData.balance);
       }
 
       const { data: txData } = await supabase
-        .from('transactions')
+        .from('wallet_transactions')
         .select('*')
         .eq('user_id', user?.id)
         .order('created_at', { ascending: false });

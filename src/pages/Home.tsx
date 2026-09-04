@@ -12,6 +12,12 @@ export function Home() {
   const [categories, setCategories] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
+  const [heroStats, setHeroStats] = useState([
+    { id: 1, label: 'মোট সেবা প্রদান', value: '২,৮৪৫+' },
+    { id: 2, label: 'নিবন্ধিত গ্রাহক', value: '১,২৫০+' },
+    { id: 3, label: 'হোলসেল পার্টনার', value: '৩৪০+' },
+    { id: 4, label: 'সক্রিয় সেবাসমূহ', value: '১০৫+' }
+  ]);
 
   useEffect(() => {
     async function loadData() {
@@ -29,6 +35,16 @@ export function Home() {
           .select('*');
           
         if (catData) setCategories(catData);
+        
+        const { data: statsData } = await supabase
+          .from('site_settings')
+          .select('value')
+          .eq('key', 'hero_stats')
+          .single();
+          
+        if (statsData && statsData.value) {
+          setHeroStats(statsData.value);
+        }
       } catch (err) {
         console.error("Failed to load services", err);
       } finally {
@@ -60,6 +76,16 @@ export function Home() {
             <button className="absolute right-2 top-2 bottom-2 bg-primary hover:bg-primary-dark text-white px-4 rounded-sm flex items-center justify-center transition-colors">
               <Search className="w-5 h-5" />
             </button>
+          </div>
+          
+          {/* Service Analysis / Stats */}
+          <div className="w-full max-w-4xl mx-auto mt-12 grid grid-cols-2 md:grid-cols-4 gap-4">
+            {heroStats.map(stat => (
+              <div key={stat.id} className="bg-white/80 backdrop-blur-sm p-4 rounded-sm border border-gray-100 shadow-sm text-center transform transition-transform hover:-translate-y-1">
+                <div className="text-2xl md:text-3xl font-bold text-primary mb-1">{stat.value}</div>
+                <div className="text-xs md:text-sm text-gray-600 font-medium">{stat.label}</div>
+              </div>
+            ))}
           </div>
         </div>
       </div>

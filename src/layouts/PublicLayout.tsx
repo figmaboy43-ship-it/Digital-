@@ -1,12 +1,41 @@
-import { ReactNode, useState } from 'react';
+import { ReactNode, useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { Menu, X, LogIn, UserPlus, Globe, HelpCircle, ShieldAlert } from 'lucide-react';
 import { useAuthStore } from '../store/authStore';
+import { supabase } from '../lib/supabase';
 
 export function PublicLayout({ children }: { children: ReactNode }) {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [lang, setLang] = useState<'bn' | 'en'>('bn');
   const { user, profile } = useAuthStore();
+  const [footerSettings, setFooterSettings] = useState({
+    siteName: 'ডিজিটাল সেবা পোর্টাল',
+    description: 'এটি একটি ডেমো ডিজিটাল সেবা প্রদানকারী পোর্টাল। এখানে আপনি বিভিন্ন অনলাইন সেবা সহজে এবং নিরাপদে গ্রহণ করতে পারবেন।',
+    phone: '+880 1234 567890',
+    email: 'support@digitalseba.com',
+    workingHours: 'রবি-বৃহস্পতি, সকাল ৯টা - বিকাল ৫টা',
+    copyright: 'ডিজিটাল সেবা পোর্টাল। সর্বস্বত্ব সংরক্ষিত।'
+  });
+
+  useEffect(() => {
+    fetchFooterSettings();
+  }, []);
+
+  const fetchFooterSettings = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('site_settings')
+        .select('value')
+        .eq('key', 'footer_content')
+        .single();
+        
+      if (!error && data && data.value) {
+        setFooterSettings(prev => ({ ...prev, ...data.value }));
+      }
+    } catch (error) {
+      console.error('Failed to load footer settings:', error);
+    }
+  };
 
   const toggleLang = () => setLang(lang === 'bn' ? 'en' : 'bn');
 
@@ -39,7 +68,7 @@ export function PublicLayout({ children }: { children: ReactNode }) {
           <div className="flex justify-between h-20">
             <div className="flex items-center">
               <Link to="/" className="flex flex-col">
-                <span className="text-2xl font-bold text-primary leading-tight">ডিজিটাল সেবা পোর্টাল</span>
+                <span className="text-2xl font-bold text-primary leading-tight">{footerSettings.siteName}</span>
                 <span className="text-sm text-gray-500 font-medium hidden sm:block">নিরাপদ ও সহজে অনলাইন সেবা গ্রহণ করুন</span>
               </Link>
             </div>
@@ -111,9 +140,9 @@ export function PublicLayout({ children }: { children: ReactNode }) {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid grid-cols-1 md:grid-cols-4 gap-8 mb-8">
             <div className="md:col-span-2">
-              <h3 className="text-xl font-bold text-primary mb-4">ডিজিটাল সেবা পোর্টাল</h3>
+              <h3 className="text-xl font-bold text-primary mb-4">{footerSettings.siteName}</h3>
               <p className="text-sm text-gray-600 mb-4 max-w-md">
-                এটি একটি ডেমো ডিজিটাল সেবা প্রদানকারী পোর্টাল। এখানে আপনি বিভিন্ন অনলাইন সেবা সহজে এবং নিরাপদে গ্রহণ করতে পারবেন।
+                {footerSettings.description}
               </p>
               <div className="flex space-x-4">
                 <a href="#" className="text-gray-400 hover:text-primary"><ShieldAlert className="w-5 h-5" /></a>
@@ -133,15 +162,15 @@ export function PublicLayout({ children }: { children: ReactNode }) {
             <div>
               <h4 className="text-sm font-semibold text-gray-900 uppercase tracking-wider mb-4">যোগাযোগ</h4>
               <ul className="space-y-2 text-sm text-gray-600">
-                <li>ফোন: +880 1234 567890</li>
-                <li>ইমেইল: support@digitalseba.com</li>
-                <li>সময়: রবি-বৃহস্পতি, সকাল ৯টা - বিকাল ৫টা</li>
+                <li>ফোন: {footerSettings.phone}</li>
+                <li>ইমেইল: {footerSettings.email}</li>
+                <li>সময়: {footerSettings.workingHours}</li>
               </ul>
             </div>
           </div>
           
           <div className="border-t border-gray-200 pt-8 flex flex-col md:flex-row justify-between items-center text-sm text-gray-500">
-            <p>&copy; {new Date().getFullYear()} ডিজিটাল সেবা পোর্টাল। সর্বস্বত্ব সংরক্ষিত।</p>
+            <p>&copy; {new Date().getFullYear()} {footerSettings.copyright}</p>
             <div className="flex space-x-4 mt-4 md:mt-0">
               <a href="#" className="hover:text-primary">শর্তাবলী</a>
               <a href="#" className="hover:text-primary">গোপনীয়তা নীতি</a>

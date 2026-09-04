@@ -48,6 +48,9 @@ import AdminPaymentMethods from './pages/admin/AdminPaymentMethods';
 import AdminReconciliation from './pages/admin/AdminReconciliation';
 import AdminSupportTickets from './pages/support/AdminSupportTickets';
 import AdminAnnouncements from './pages/admin/AdminAnnouncements';
+import AdminFooterSettings from './pages/admin/AdminFooterSettings';
+import AdminStatsSettings from './pages/admin/AdminStatsSettings';
+
 import NotificationsPage from './pages/notifications/NotificationsPage';
 import SupportTickets from './pages/support/SupportTickets';
 import SupportTicketDetails from './pages/support/SupportTicketDetails';
@@ -106,6 +109,8 @@ export default function App() {
               <Route path="support/new" element={<CreateTicket />} />
               <Route path="support/:id" element={<SupportTicketDetails />} />
               <Route path="wallets" element={<AdminWallets />} />
+              <Route path="footer" element={<AdminFooterSettings />} />
+              <Route path="stats" element={<AdminStatsSettings />} />
               <Route path="*" element={<Navigate to="/admin" replace />} />
             </Route>
           </Route>

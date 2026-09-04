@@ -3,7 +3,10 @@ import { supabase } from '../../lib/supabase';
 import { CheckCircle, XCircle, Clock, Eye, AlertTriangle } from 'lucide-react';
 import toast from 'react-hot-toast';
 
+import AdminWholesaleSettings from "./AdminWholesaleSettings";
+
 export default function AdminWholesale() {
+  const [activeTab, setActiveTab] = useState<"applications" | "settings">("applications");
   const [apps, setApps] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -62,10 +65,33 @@ export default function AdminWholesale() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-slate-900">Wholesale Applications</h1>
-        <p className="text-slate-500 mt-1">Review and manage wholesale access requests</p>
+        <h1 className="text-2xl font-bold text-slate-900">Wholesale Management</h1>
+        <p className="text-slate-500 mt-1">Review access requests and configure wholesale program content</p>
       </div>
 
+      <div className="flex space-x-1 border-b border-slate-200">
+        <button
+          onClick={() => setActiveTab("applications")}
+          className={`px-4 py-2 font-medium text-sm rounded-t-lg transition-colors ${
+            activeTab === "applications" ? "bg-white text-emerald-600 border border-b-0 border-slate-200" : "text-slate-500 hover:text-slate-700"
+          }`}
+        >
+          Applications
+        </button>
+        <button
+          onClick={() => setActiveTab("settings")}
+          className={`px-4 py-2 font-medium text-sm rounded-t-lg transition-colors ${
+            activeTab === "settings" ? "bg-white text-emerald-600 border border-b-0 border-slate-200" : "text-slate-500 hover:text-slate-700"
+          }`}
+        >
+          Settings
+        </button>
+      </div>
+
+      {activeTab === "settings" ? (
+        <AdminWholesaleSettings />
+      ) : (
+    <div className="space-y-6">
       <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-left text-sm text-slate-600">
@@ -138,6 +164,9 @@ export default function AdminWholesale() {
           </table>
         </div>
       </div>
+    </div>
+
+      )}
     </div>
   );
 }

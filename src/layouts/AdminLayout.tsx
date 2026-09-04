@@ -27,6 +27,8 @@ const navItems = [
   { name: 'ট্রানজেকশন', path: '/admin/transactions', icon: ArrowRightLeft },
   { name: 'সাপোর্ট ম্যানেজমেন্ট', path: '/admin/support', icon: HeadphonesIcon },
   { name: 'নোটিশ বোর্ড', path: '/admin/announcements', icon: Bell },
+  { name: 'ওয়েবসাইট সেটিংস', path: '/admin/footer', icon: Settings },
+  { name: 'সার্ভিস এনালাইসিস', path: '/admin/stats', icon: FileBarChart },
 ];
 
 export default function AdminLayout() {

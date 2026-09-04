@@ -26,7 +26,7 @@ export function WholesaleDashboard() {
   const fetchDashboardStats = async () => {
     try {
       const [walletRes, ordersRes] = await Promise.all([
-        supabase.from('wallets').select('balance').eq('user_id', user?.id).single(),
+        supabase.from('wallets').select('balance').eq('user_id', user?.id).maybeSingle(),
         supabase.from('orders').select('*, services(retail_price, wholesale_price)').eq('user_id', user?.id)
       ]);
 
