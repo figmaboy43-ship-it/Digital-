@@ -2,7 +2,7 @@ import { ReactNode, useState, useEffect } from 'react';
 import { Navigate, Link, useLocation } from 'react-router-dom';
 import { NotificationDropdown } from '../components/notifications/NotificationDropdown';
 import { 
-  LayoutDashboard, 
+  MessageSquare, LayoutDashboard, 
   ShoppingBag, 
   List, 
   Wallet, 
@@ -19,6 +19,7 @@ import {
   Briefcase
 } from 'lucide-react';
 import { useAuthStore } from '../store/authStore';
+import { useChatStore } from '../store/chatStore';
 import { supabase } from '../lib/supabase';
 import { cn } from '../lib/utils';
 import toast from 'react-hot-toast';
@@ -37,6 +38,7 @@ const navItems: NavItem[] = [
   { name: 'ওয়ালেট', href: '/dashboard/wallet', icon: Wallet, roles: ['retail', 'wholesale'] },
   { name: 'ডিপোজিট করুন', href: '/dashboard/deposit', icon: CreditCard, roles: ['retail', 'wholesale'] },
   { name: 'লেনদেনের হিসেব', href: '/dashboard/transactions', icon: History, roles: ['retail', 'wholesale'] },
+  { name: 'সাপোর্ট চ্যাট', href: '/dashboard/messages', icon: MessageSquare, roles: ['retail', 'wholesale'] },
   { name: 'হোলসেল প্রোগ্রাম', href: '/dashboard/wholesale', icon: Briefcase, roles: ['retail', 'wholesale'] },
   { name: 'নোটিফিকেশন', href: '/dashboard/notifications', icon: Bell, roles: ['retail', 'wholesale'] },
   { name: 'সাপোর্ট সেন্টার', href: '/dashboard/support', icon: HelpCircle, roles: ['retail', 'wholesale'] },
@@ -45,6 +47,7 @@ const navItems: NavItem[] = [
 ];
 
 export function DashboardLayout({ children }: { children: ReactNode }) {
+  const { unreadCount, fetchUnreadCount, subscribeToMessages } = useChatStore();
   const { user, profile, isLoading, signOut } = useAuthStore();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const location = useLocation();
@@ -88,6 +91,13 @@ export function DashboardLayout({ children }: { children: ReactNode }) {
       console.error(e);
     }
   };
+
+  useEffect(() => {
+    if (user && profile) {
+      fetchUnreadCount(user.id, profile.role);
+      subscribeToMessages(user.id, profile.role);
+    }
+  }, [user, profile]);
 
   const handleLogout = async () => {
     try {

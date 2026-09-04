@@ -47,7 +47,10 @@ import AdminWallets from './pages/admin/AdminWallets';
 import AdminPaymentMethods from './pages/admin/AdminPaymentMethods';
 import AdminReconciliation from './pages/admin/AdminReconciliation';
 import AdminSupportTickets from './pages/support/AdminSupportTickets';
+import AdminChat from './pages/admin/AdminChat';
+
 import AdminAnnouncements from './pages/admin/AdminAnnouncements';
+import { Chat } from './pages/Dashboard/Chat';
 import AdminFooterSettings from './pages/admin/AdminFooterSettings';
 import AdminStatsSettings from './pages/admin/AdminStatsSettings';
 
@@ -106,6 +109,7 @@ export default function App() {
               <Route path="announcements" element={<AdminAnnouncements />} />
               <Route path="notifications" element={<NotificationsPage />} />
               <Route path="support" element={<AdminSupportTickets />} />
+              <Route path="messages" element={<AdminChat />} />
               <Route path="support/new" element={<CreateTicket />} />
               <Route path="support/:id" element={<SupportTicketDetails />} />
               <Route path="wallets" element={<AdminWallets />} />
@@ -126,6 +130,7 @@ export default function App() {
           <Route path="/dashboard/deposit" element={<DashboardLayout><Deposit /></DashboardLayout>} />
           <Route path="/dashboard/notifications" element={<DashboardLayout><NotificationsPage /></DashboardLayout>} />
           <Route path="/dashboard/support" element={<DashboardLayout><SupportTickets /></DashboardLayout>} />
+          <Route path="/dashboard/messages" element={<DashboardLayout><Chat /></DashboardLayout>} />
           <Route path="/dashboard/support/new" element={<DashboardLayout><CreateTicket /></DashboardLayout>} />
           <Route path="/dashboard/support/:id" element={<DashboardLayout><SupportTicketDetails /></DashboardLayout>} />
           <Route path="/dashboard/wholesale" element={<DashboardLayout><WholesaleApplication /></DashboardLayout>} />
@@ -143,6 +148,7 @@ export default function App() {
               <Route path="deposit" element={<WholesaleDeposit />} />
               <Route path="notifications" element={<NotificationsPage />} />
               <Route path="support" element={<SupportTickets />} />
+              <Route path="messages" element={<Chat />} />
               <Route path="support/new" element={<CreateTicket />} />
               <Route path="support/:id" element={<SupportTicketDetails />} />
               <Route path="*" element={<Navigate to="/wholesale" replace />} />

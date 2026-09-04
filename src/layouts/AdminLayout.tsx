@@ -2,8 +2,9 @@ import React, { useState } from 'react';
 import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { NotificationDropdown } from '../components/notifications/NotificationDropdown';
 import { useAuthStore } from '../store/authStore';
+import { useChatStore } from '../store/chatStore';
 import { 
-  LayoutDashboard, Users, UserCheck, Briefcase, 
+  MessageSquare, LayoutDashboard, Users, UserCheck, Briefcase, 
   Package, Tags, ShoppingCart, CreditCard, 
   Wallet, ArrowRightLeft, Ticket, HeadphonesIcon, 
   Bell, FileBarChart, Shield, Settings, LogOut, 
@@ -26,16 +27,27 @@ const navItems = [
   { name: 'ওয়ালেট পরিচালনা', path: '/admin/wallets', icon: Wallet },
   { name: 'ট্রানজেকশন', path: '/admin/transactions', icon: ArrowRightLeft },
   { name: 'সাপোর্ট ম্যানেজমেন্ট', path: '/admin/support', icon: HeadphonesIcon },
+  { name: 'সরাসরি চ্যাট', path: '/admin/messages', icon: MessageSquare },
   { name: 'নোটিশ বোর্ড', path: '/admin/announcements', icon: Bell },
   { name: 'ওয়েবসাইট সেটিংস', path: '/admin/footer', icon: Settings },
   { name: 'সার্ভিস এনালাইসিস', path: '/admin/stats', icon: FileBarChart },
 ];
 
 export default function AdminLayout() {
+  const { unreadCount, fetchUnreadCount, subscribeToMessages } = useChatStore();
+  const { user } = useAuthStore();
+
   const location = useLocation();
   const navigate = useNavigate();
   const { profile } = useAuthStore();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+
+  React.useEffect(() => {
+    if (user && profile) {
+      fetchUnreadCount(user.id, profile.role);
+      subscribeToMessages(user.id, profile.role);
+    }
+  }, [user, profile]);
 
   const handleLogout = async () => {
     try {

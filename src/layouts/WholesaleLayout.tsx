@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Link, useLocation, useNavigate, Outlet } from 'react-router-dom';
 import { NotificationDropdown } from '../components/notifications/NotificationDropdown';
 import { useAuthStore } from '../store/authStore';
+import { useChatStore } from '../store/chatStore';
 import { supabase } from '../lib/supabase';
 import { 
   LayoutDashboard, 
@@ -14,11 +15,15 @@ import {
   LogOut,
   Bell,
   ArrowLeft,
-  LifeBuoy
+  LifeBuoy,
+  MessageSquare
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 export function WholesaleLayout() {
+  const { unreadCount, fetchUnreadCount, subscribeToMessages } = useChatStore();
+  const { user } = useAuthStore();
+
   const { profile, signOut } = useAuthStore();
   const location = useLocation();
   const navigate = useNavigate();
@@ -31,7 +36,15 @@ export function WholesaleLayout() {
     { name: 'ওয়ালেট', href: '/wholesale/wallet', icon: Wallet },
     { name: 'ডিপোজিট', href: '/wholesale/deposit', icon: ArrowUpRight },
     { name: 'সাপোর্ট সেন্টার', href: '/wholesale/support', icon: LifeBuoy },
+    { name: 'সরাসরি চ্যাট', href: '/wholesale/messages', icon: MessageSquare },
   ];
+
+  React.useEffect(() => {
+    if (user && profile) {
+      fetchUnreadCount(user.id, profile.role);
+      subscribeToMessages(user.id, profile.role);
+    }
+  }, [user, profile]);
 
   const handleSignOut = async () => {
     try {
@@ -114,6 +127,11 @@ export function WholesaleLayout() {
                 >
                   <item.icon className={`w-5 h-5 mr-3 shrink-0 ${active ? 'text-white' : 'text-gray-400 group-hover:text-white'}`} />
                   {item.name}
+                  {item.name === 'সরাসরি চ্যাট' && unreadCount > 0 && (
+                    <span className="bg-emerald-500 text-white text-xs font-bold px-2 py-0.5 rounded-full ml-auto">
+                      {unreadCount}
+                    </span>
+                  )}
                 </Link>
               );
             })}
