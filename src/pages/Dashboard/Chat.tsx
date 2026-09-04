@@ -6,15 +6,17 @@ import { format } from 'date-fns';
 import toast from 'react-hot-toast';
 
 export function Chat() {
-  const { user, profile } = useAuthStore();
+  const { user } = useAuthStore();
   const [conversation, setConversation] = useState<any>(null);
   const [messages, setMessages] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [newMessage, setNewMessage] = useState('');
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [sending, setSending] = useState(false);
   const [uploading, setUploading] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const scrollTimeout = useRef<any>(null);
 
   useEffect(() => {
     if (user) {
@@ -22,17 +24,42 @@ export function Chat() {
     }
   }, [user]);
 
+  // Fallback Polling for robust real-time
+  useEffect(() => {
+    let pollInterval: any;
+    if (conversation && user) {
+      pollInterval = setInterval(async () => {
+        const { data, error } = await supabase
+          .from('messages')
+          .select('*')
+          .eq('conversation_id', conversation.id)
+          .order('created_at', { ascending: true });
+          
+        if (!error && data) {
+          setMessages(data);
+          const unreadIds = data.filter(m => m.sender_id !== user.id && m.status !== 'read').map(m => m.id);
+          if (unreadIds.length > 0) {
+            await supabase.from('messages').update({ status: 'read' }).in('id', unreadIds);
+          }
+        }
+      }, 3000);
+    }
+    return () => clearInterval(pollInterval);
+  }, [conversation, user]);
+
   useEffect(() => {
     scrollToBottom();
   }, [messages]);
 
   const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    if (scrollTimeout.current) clearTimeout(scrollTimeout.current);
+    scrollTimeout.current = setTimeout(() => {
+      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    }, 100);
   };
 
   const initChat = async () => {
     try {
-      // Find or create conversation
       let { data: conv, error: convError } = await supabase
         .from('conversations')
         .select('*')
@@ -52,7 +79,6 @@ export function Chat() {
 
       setConversation(conv);
 
-      // Fetch messages
       const { data: msgs, error: msgsError } = await supabase
         .from('messages')
         .select('*')
@@ -62,17 +88,18 @@ export function Chat() {
       if (msgsError) throw msgsError;
       setMessages(msgs || []);
 
-      // Mark unread as read
       const unreadIds = msgs?.filter(m => m.sender_id !== user?.id && m.status !== 'read').map(m => m.id) || [];
       if (unreadIds.length > 0) {
         await supabase.from('messages').update({ status: 'read' }).in('id', unreadIds);
       }
 
-      // Subscribe to new messages
       const subscription = supabase
         .channel(`chat_${conv.id}`)
         .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages', filter: `conversation_id=eq.${conv.id}` }, (payload) => {
-          setMessages(prev => [...prev, payload.new]);
+          setMessages(prev => {
+            if (prev.some(m => m.id === payload.new.id)) return prev;
+            return [...prev, payload.new];
+          });
           if (payload.new.sender_id !== user?.id) {
              supabase.from('messages').update({ status: 'read' }).eq('id', payload.new.id);
           }
@@ -94,22 +121,21 @@ export function Chat() {
 
   const handleSend = async (e: React.FormEvent) => {
     e.preventDefault();
-    if ((!newMessage.trim() && !fileInputRef.current?.files?.length) || !conversation || sending) return;
+    if ((!newMessage.trim() && !selectedFile) || !conversation || sending) return;
 
     setSending(true);
     let attachment_url = null;
 
     try {
-      if (fileInputRef.current?.files?.length) {
-        const file = fileInputRef.current.files[0];
+      if (selectedFile) {
         setUploading(true);
-        const fileExt = file.name.split('.').pop();
+        const fileExt = selectedFile.name.split('.').pop();
         const fileName = `${Math.random()}.${fileExt}`;
         const filePath = `${user?.id}/${fileName}`;
         
-        const { error: uploadError, data } = await supabase.storage
+        const { error: uploadError } = await supabase.storage
           .from('chat-attachments')
-          .upload(filePath, file);
+          .upload(filePath, selectedFile);
 
         if (uploadError) throw uploadError;
         
@@ -118,19 +144,26 @@ export function Chat() {
           .getPublicUrl(filePath);
           
         attachment_url = publicUrl;
+        setSelectedFile(null);
         if (fileInputRef.current) fileInputRef.current.value = '';
       }
 
-      const { error } = await supabase.from('messages').insert([{
+      const { data, error } = await supabase.from('messages').insert([{
         conversation_id: conversation.id,
         sender_id: user?.id,
         content: newMessage.trim() || null,
         attachment_url,
         status: 'sent'
-      }]);
+      }]).select().single();
 
       if (error) throw error;
+      
+      setMessages(prev => {
+        if (prev.some(m => m.id === data.id)) return prev;
+        return [...prev, data];
+      });
       setNewMessage('');
+      scrollToBottom();
     } catch (error: any) {
       toast.error(error.message || 'Failed to send message');
     } finally {
@@ -155,7 +188,6 @@ export function Chat() {
       </div>
 
       <div className="flex-1 bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden flex flex-col">
-        {/* Messages Area */}
         <div className="flex-1 p-4 overflow-y-auto space-y-4 bg-slate-50">
           {messages.length === 0 ? (
             <div className="h-full flex flex-col items-center justify-center text-slate-500">
@@ -174,7 +206,7 @@ export function Chat() {
                   }`}>
                     {msg.attachment_url && (
                       <div className="mb-2">
-                        {msg.attachment_url.match(/\.(jpeg|jpg|gif|png)$/) != null ? (
+                        {msg.attachment_url.match(/\.(jpeg|jpg|gif|png)$/i) != null ? (
                           <img src={msg.attachment_url} alt="attachment" className="rounded-lg max-w-full h-auto max-h-60" />
                         ) : (
                           <a href={msg.attachment_url} target="_blank" rel="noreferrer" className="flex items-center gap-2 underline text-sm">
@@ -200,15 +232,24 @@ export function Chat() {
           <div ref={messagesEndRef} />
         </div>
 
-        {/* Input Area */}
         <div className="p-4 bg-white border-t border-slate-200">
-          <form onSubmit={handleSend} className="flex items-end gap-2">
+          <form onSubmit={handleSend} className="flex items-end gap-2 relative">
+            
+            {selectedFile && (
+              <div className="absolute -top-12 left-0 bg-emerald-100 text-emerald-800 text-xs px-3 py-2 rounded-lg flex items-center gap-2 shadow-sm border border-emerald-200 z-10">
+                <ImageIcon className="w-4 h-4" />
+                <span className="truncate max-w-[200px] font-medium">{selectedFile.name}</span>
+                <button type="button" onClick={() => { setSelectedFile(null); if(fileInputRef.current) fileInputRef.current.value = ''; }} className="ml-2 text-emerald-600 hover:text-emerald-900 font-bold p-1">&times;</button>
+              </div>
+            )}
+
             <div className="relative">
               <input
                 type="file"
                 ref={fileInputRef}
                 className="hidden"
-                onChange={() => setNewMessage(prev => prev)} // trigger re-render to check file
+                accept="image/*,.pdf,.doc,.docx"
+                onChange={(e) => setSelectedFile(e.target.files?.[0] || null)}
               />
               <button
                 type="button"
@@ -220,13 +261,6 @@ export function Chat() {
             </div>
             
             <div className="flex-1 relative">
-              {fileInputRef.current?.files?.length ? (
-                <div className="absolute -top-8 left-0 bg-emerald-100 text-emerald-800 text-xs px-2 py-1 rounded-md flex items-center gap-1">
-                  <ImageIcon className="w-3 h-3" />
-                  {fileInputRef.current.files[0].name}
-                  <button type="button" onClick={() => {if(fileInputRef.current) fileInputRef.current.value = ''; setNewMessage(prev=>prev);}} className="ml-2 font-bold">&times;</button>
-                </div>
-              ) : null}
               <input
                 type="text"
                 value={newMessage}
@@ -238,7 +272,7 @@ export function Chat() {
 
             <button
               type="submit"
-              disabled={sending || uploading || (!newMessage.trim() && !fileInputRef.current?.files?.length)}
+              disabled={sending || uploading || (!newMessage.trim() && !selectedFile)}
               className="p-3 bg-emerald-600 text-white rounded-full hover:bg-emerald-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center min-w-[48px]"
             >
               {sending || uploading ? <Loader2 className="w-5 h-5 animate-spin" /> : <Send className="w-5 h-5 ml-1" />}

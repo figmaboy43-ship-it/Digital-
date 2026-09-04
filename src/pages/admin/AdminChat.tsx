@@ -12,16 +12,23 @@ export default function AdminChat() {
   const [messages, setMessages] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [newMessage, setNewMessage] = useState('');
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [sending, setSending] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const scrollTimeout = useRef<any>(null);
 
   useEffect(() => {
     fetchConversations();
     
+    // Fallback polling to guarantee delivery
+    const pollInterval = setInterval(() => {
+      fetchConversations();
+    }, 3000);
+
     const subscription = supabase
       .channel('admin_conversations')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'conversations' }, () => {
@@ -30,7 +37,10 @@ export default function AdminChat() {
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, (payload) => {
         fetchConversations();
         if (activeConv && payload.new.conversation_id === activeConv.id) {
-          setMessages(prev => [...prev, payload.new]);
+          setMessages(prev => {
+            if (prev.some(m => m.id === payload.new.id)) return prev;
+            return [...prev, payload.new];
+          });
           if (payload.new.sender_id !== user?.id) {
             supabase.from('messages').update({ status: 'read' }).eq('id', payload.new.id);
           }
@@ -39,8 +49,32 @@ export default function AdminChat() {
       .subscribe();
 
     return () => {
+      clearInterval(pollInterval);
       supabase.removeChannel(subscription);
     };
+  }, [activeConv]);
+
+  // Polling active conversation messages independently for faster response
+  useEffect(() => {
+    let msgInterval: any;
+    if (activeConv) {
+      msgInterval = setInterval(async () => {
+        const { data } = await supabase
+          .from('messages')
+          .select('*')
+          .eq('conversation_id', activeConv.id)
+          .order('created_at', { ascending: true });
+          
+        if (data) {
+          setMessages(data);
+          const unreadIds = data.filter(m => m.sender_id !== user?.id && m.status !== 'read').map(m => m.id);
+          if (unreadIds.length > 0) {
+            await supabase.from('messages').update({ status: 'read' }).in('id', unreadIds);
+          }
+        }
+      }, 2000);
+    }
+    return () => clearInterval(msgInterval);
   }, [activeConv]);
 
   useEffect(() => {
@@ -48,7 +82,10 @@ export default function AdminChat() {
   }, [messages]);
 
   const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    if (scrollTimeout.current) clearTimeout(scrollTimeout.current);
+    scrollTimeout.current = setTimeout(() => {
+      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    }, 100);
   };
 
   const fetchConversations = async () => {
@@ -60,8 +97,6 @@ export default function AdminChat() {
 
       if (error) throw error;
       
-      // We could also join messages to get unread count and last message, but for simplicity we fetch them here or assume.
-      // Let's manually fetch unread counts for admin
       const { data: unreadData } = await supabase
         .from('messages')
         .select('conversation_id, status')
@@ -78,7 +113,8 @@ export default function AdminChat() {
         unread_count: counts[c.id] || 0
       })) || [];
 
-      setConversations(enhancedConvs);
+      // only update if stringified length changes to avoid unnecessary re-renders
+      setConversations(prev => JSON.stringify(prev) !== JSON.stringify(enhancedConvs) ? enhancedConvs : prev);
     } catch (error) {
       console.error(error);
     } finally {
@@ -101,7 +137,7 @@ export default function AdminChat() {
       const unreadIds = data?.filter(m => m.sender_id !== user?.id && m.status !== 'read').map(m => m.id) || [];
       if (unreadIds.length > 0) {
         await supabase.from('messages').update({ status: 'read' }).in('id', unreadIds);
-        fetchConversations(); // refresh counts
+        fetchConversations();
       }
     } catch (error) {
       toast.error('Failed to load messages');
@@ -110,22 +146,21 @@ export default function AdminChat() {
 
   const handleSend = async (e: React.FormEvent) => {
     e.preventDefault();
-    if ((!newMessage.trim() && !fileInputRef.current?.files?.length) || !activeConv || sending) return;
+    if ((!newMessage.trim() && !selectedFile) || !activeConv || sending) return;
 
     setSending(true);
     let attachment_url = null;
 
     try {
-      if (fileInputRef.current?.files?.length) {
-        const file = fileInputRef.current.files[0];
+      if (selectedFile) {
         setUploading(true);
-        const fileExt = file.name.split('.').pop();
+        const fileExt = selectedFile.name.split('.').pop();
         const fileName = `${Math.random()}.${fileExt}`;
         const filePath = `admin/${fileName}`;
         
         const { error: uploadError } = await supabase.storage
           .from('chat-attachments')
-          .upload(filePath, file);
+          .upload(filePath, selectedFile);
 
         if (uploadError) throw uploadError;
         
@@ -134,19 +169,27 @@ export default function AdminChat() {
           .getPublicUrl(filePath);
           
         attachment_url = publicUrl;
+        setSelectedFile(null);
         if (fileInputRef.current) fileInputRef.current.value = '';
       }
 
-      const { error } = await supabase.from('messages').insert([{
+      const { data, error } = await supabase.from('messages').insert([{
         conversation_id: activeConv.id,
         sender_id: user?.id,
         content: newMessage.trim() || null,
         attachment_url,
         status: 'sent'
-      }]);
+      }]).select().single();
 
       if (error) throw error;
+      
+      setMessages(prev => {
+        if (prev.some(m => m.id === data.id)) return prev;
+        return [...prev, data];
+      });
       setNewMessage('');
+      scrollToBottom();
+      fetchConversations(); // Trigger sidebar update
     } catch (error: any) {
       toast.error(error.message || 'Failed to send message');
     } finally {
@@ -162,7 +205,6 @@ export default function AdminChat() {
 
   return (
     <div className="flex flex-col md:flex-row h-[calc(100vh-8rem)] bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
-      {/* Sidebar / Conversation List */}
       <div className={`${activeConv ? 'hidden md:flex' : 'flex'} w-full md:w-80 border-r border-slate-200 flex-col bg-slate-50`}>
         <div className="p-4 border-b border-slate-200 bg-white">
           <h2 className="text-lg font-bold text-slate-900 mb-3">Messages</h2>
@@ -215,7 +257,6 @@ export default function AdminChat() {
         </div>
       </div>
 
-      {/* Chat Area */}
       <div className={`${!activeConv ? 'hidden md:flex' : 'flex'} flex-1 flex-col bg-white`}>
         {activeConv ? (
           <>
@@ -242,7 +283,7 @@ export default function AdminChat() {
                     }`}>
                       {msg.attachment_url && (
                         <div className="mb-2">
-                          {msg.attachment_url.match(/\.(jpeg|jpg|gif|png)$/) != null ? (
+                          {msg.attachment_url.match(/\.(jpeg|jpg|gif|png)$/i) != null ? (
                             <img src={msg.attachment_url} alt="attachment" className="rounded-lg max-w-full h-auto max-h-60" />
                           ) : (
                             <a href={msg.attachment_url} target="_blank" rel="noreferrer" className="flex items-center gap-2 underline text-sm">
@@ -268,13 +309,23 @@ export default function AdminChat() {
             </div>
 
             <div className="p-4 bg-white border-t border-slate-200">
-              <form onSubmit={handleSend} className="flex items-end gap-2">
+              <form onSubmit={handleSend} className="flex items-end gap-2 relative">
+                
+                {selectedFile && (
+                  <div className="absolute -top-12 left-0 bg-emerald-100 text-emerald-800 text-xs px-3 py-2 rounded-lg flex items-center gap-2 shadow-sm border border-emerald-200 z-10">
+                    <ImageIcon className="w-4 h-4" />
+                    <span className="truncate max-w-[200px] font-medium">{selectedFile.name}</span>
+                    <button type="button" onClick={() => { setSelectedFile(null); if(fileInputRef.current) fileInputRef.current.value = ''; }} className="ml-2 text-emerald-600 hover:text-emerald-900 font-bold p-1">&times;</button>
+                  </div>
+                )}
+
                 <div className="relative">
                   <input
                     type="file"
                     ref={fileInputRef}
                     className="hidden"
-                    onChange={() => setNewMessage(prev => prev)}
+                    accept="image/*,.pdf,.doc,.docx"
+                    onChange={(e) => setSelectedFile(e.target.files?.[0] || null)}
                   />
                   <button
                     type="button"
@@ -286,13 +337,6 @@ export default function AdminChat() {
                 </div>
                 
                 <div className="flex-1 relative">
-                  {fileInputRef.current?.files?.length ? (
-                    <div className="absolute -top-8 left-0 bg-emerald-100 text-emerald-800 text-xs px-2 py-1 rounded-md flex items-center gap-1">
-                      <ImageIcon className="w-3 h-3" />
-                      {fileInputRef.current.files[0].name}
-                      <button type="button" onClick={() => {if(fileInputRef.current) fileInputRef.current.value = ''; setNewMessage(prev=>prev);}} className="ml-2 font-bold">&times;</button>
-                    </div>
-                  ) : null}
                   <input
                     type="text"
                     value={newMessage}
@@ -304,7 +348,7 @@ export default function AdminChat() {
 
                 <button
                   type="submit"
-                  disabled={sending || uploading || (!newMessage.trim() && !fileInputRef.current?.files?.length)}
+                  disabled={sending || uploading || (!newMessage.trim() && !selectedFile)}
                   className="p-3 bg-emerald-600 text-white rounded-full hover:bg-emerald-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center min-w-[48px]"
                 >
                   {sending || uploading ? <Loader2 className="w-5 h-5 animate-spin" /> : <Send className="w-5 h-5 ml-1" />}
